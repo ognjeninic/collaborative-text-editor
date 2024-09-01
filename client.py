@@ -1,12 +1,10 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, font, colorchooser
 
-#SAMO KLIJENT
-#gewgtweufe
 class TextEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("Text Editor")
+        self.root.title("Collaborative Text Editor")
         self.root.geometry("800x600")
 
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
@@ -38,6 +36,14 @@ class TextEditor:
         format_menu.add_command(label="Italic", command=self.make_italic)
         format_menu.add_command(label="Underline", command=self.make_underline)
         format_menu.add_command(label="Text Color", command=self.change_text_color)
+        
+        # Alignment menu
+        alignment_menu = tk.Menu(format_menu, tearoff=False)
+        format_menu.add_cascade(label="Align", menu=alignment_menu)
+        alignment_menu.add_command(label="Left", command=self.align_left)
+        alignment_menu.add_command(label="Center", command=self.align_center)
+        alignment_menu.add_command(label="Right", command=self.align_right)
+        alignment_menu.add_command(label="Justify", command=self.align_justify)
 
         # Font menu
         font_menu = tk.Menu(self.main_menu, tearoff=False)
@@ -144,6 +150,26 @@ class TextEditor:
             self.text_area.tag_remove("underline", "sel.first", "sel.last")
         else:
             self.text_area.tag_add("underline", "sel.first", "sel.last")
+
+    def align_left(self):
+        """Align the selected text to the left."""
+        self.text_area.tag_configure("left", justify='left')
+        self.text_area.tag_add("left", "sel.first", "sel.last")
+
+    def align_center(self):
+        """Center the selected text."""
+        self.text_area.tag_configure("center", justify='center')
+        self.text_area.tag_add("center", "sel.first", "sel.last")
+
+    def align_right(self):
+        """Align the selected text to the right."""
+        self.text_area.tag_configure("right", justify='right')
+        self.text_area.tag_add("right", "sel.first", "sel.last")
+
+    def align_justify(self):
+        """Justify the selected text."""
+        self.text_area.tag_configure("justify", justify='justify')
+        self.text_area.tag_add("justify", "sel.first", "sel.last")
 
 
 if __name__ == "__main__":
