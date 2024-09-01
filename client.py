@@ -3,8 +3,6 @@ from tkinter import filedialog, messagebox, font, colorchooser
 
 #SAMO KLIJENT
 #gewgtweufe
-
-#ggaeg
 class TextEditor:
     def __init__(self, root):
         self.root = root
