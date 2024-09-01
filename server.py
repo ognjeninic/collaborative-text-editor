@@ -1,1 +1,1 @@
-print("f promene")
+print("f prrusguggrsghomene")
