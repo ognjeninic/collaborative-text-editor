@@ -1,1 +1,1 @@
-print("moje promene")
+print("f promene")
