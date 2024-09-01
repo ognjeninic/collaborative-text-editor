@@ -1,1 +1,1 @@
-print("Server koji drzi fajlove")
+print("Server koji drve")
