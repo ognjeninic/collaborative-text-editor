@@ -4,7 +4,7 @@ from tkinter import filedialog, messagebox, font, colorchooser
 class TextEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("Simple Text Editor")
+        self.root.title("Text Editor")
         self.root.geometry("800x600")
 
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
