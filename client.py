@@ -4,7 +4,7 @@ from tkinter import filedialog, messagebox, font, colorchooser
 class TextEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("Collaborative Word")
+        self.root.title("Colaborative Word")
         self.root.geometry("1980x1080")
 
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
@@ -24,12 +24,12 @@ class TextEditor:
         file_menu.add_command(label="Exit", command=self.root.quit)
 
         # Clipboard menu
-        clipboard_menu = tk.Menu(self.main_menu, tearoff=False)
-        self.main_menu.add_cascade(label="Clipboard", menu=clipboard_menu)
-        clipboard_menu.add_command(label="Copy", command=self.copy_text)
-        clipboard_menu.add_command(label="Cut", command=self.cut_text)
-        clipboard_menu.add_separator()
-        clipboard_menu.add_command(label="Paste", command=self.paste_text)
+        edit_menu = tk.Menu(self.main_menu, tearoff=False)
+        self.main_menu.add_cascade(label="Clipboard", menu=edit_menu)
+        edit_menu.add_command(label="Copy", command=self.copy_text)
+        edit_menu.add_command(label="Cut", command=self.cut_text)
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Paste", command=self.paste_text)
         
         # Edit menu
         edit_menu = tk.Menu(self.main_menu, tearoff=False)
@@ -40,9 +40,10 @@ class TextEditor:
         # Format menu
         format_menu = tk.Menu(self.main_menu, tearoff=False)
         self.main_menu.add_cascade(label="Format", menu=format_menu)
-        format_menu.add_checkbutton(label="Bold", command=self.make_bold)
-        format_menu.add_checkbutton(label="Italic", command=self.make_italic)
-        format_menu.add_checkbutton(label="Underline", command=self.make_underline)
+        format_menu.add_command(label="Bold", command=self.make_bold)
+        format_menu.add_command(label="Italic", command=self.make_italic)
+        format_menu.add_command(label="Underline", command=self.make_underline)
+        format_menu.add_separator()
         format_menu.add_command(label="Text Color", command=self.change_text_color)
 
         # Font menu
@@ -58,26 +59,29 @@ class TextEditor:
         self.font_size_var = tk.StringVar(value="12")
         font_menu.add_cascade(label="Font Size", menu=self.create_font_size_menu())
 
-        self.current_font = font.Font(family=self.font_var.get(), size=self.font_size_var.get())
-        self.text_area.configure(font=self.current_font)
-
         self.current_file = None
 
     def create_font_family_menu(self, font_families):
         font_family_menu = tk.Menu(self.main_menu, tearoff=False)
         for family in font_families:
-            font_family_menu.add_radiobutton(label=family, variable=self.font_var, command=self.change_font)
+            font_family_menu.add_radiobutton(label=family, variable=self.font_var, command=self.apply_font)
         return font_family_menu
 
     def create_font_size_menu(self):
         font_size_menu = tk.Menu(self.main_menu, tearoff=False)
         for size in range(8, 72, 2):
-            font_size_menu.add_radiobutton(label=str(size), variable=self.font_size_var, command=self.change_font)
+            font_size_menu.add_radiobutton(label=str(size), variable=self.font_size_var, command=self.apply_font)
         return font_size_menu
 
-    def change_font(self):
-        self.current_font.configure(family=self.font_var.get(), size=self.font_size_var.get())
-        self.text_area.configure(font=self.current_font)
+    def apply_font(self):
+        # Konfiguriše font i veličinu za selektovani tekst
+        selected_font = font.Font(family=self.font_var.get(), size=self.font_size_var.get())
+        self.text_area.tag_configure("selected_font", font=selected_font)
+        
+        current_tags = self.text_area.tag_names("sel.first")
+        if "selected_font" in current_tags:
+            self.text_area.tag_remove("selected_font", "sel.first", "sel.last")
+        self.text_area.tag_add("selected_font", "sel.first", "sel.last")
 
     def change_text_color(self):
         color = colorchooser.askcolor()[1]
@@ -134,55 +138,38 @@ class TextEditor:
             with open(self.current_file, "w") as file:
                 file.write(self.text_area.get(1.0, tk.END))
 
-    def apply_tag(self, tag_name, font_config):
-        # Configure the font for the tag
-        self.text_area.tag_configure(tag_name, font=font_config)
-
-        # Apply or remove the tag from selected text
-        current_tags = self.text_area.tag_names("sel.first")
-        if tag_name in current_tags:
-            self.text_area.tag_remove(tag_name, "sel.first", "sel.last")
-        else:
-            self.text_area.tag_add(tag_name, "sel.first", "sel.last")
-
     def make_bold(self):
         bold_font = font.Font(self.text_area, self.text_area.cget("font"))
         bold_font.configure(weight="bold")
-        self.apply_tag("bold", bold_font)
-        self.update_combined_tags()
+        self.text_area.tag_configure("bold", font=bold_font)
+
+        current_tags = self.text_area.tag_names("sel.first")
+        if "bold" in current_tags:
+            self.text_area.tag_remove("bold", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("bold", "sel.first", "sel.last")
 
     def make_italic(self):
         italic_font = font.Font(self.text_area, self.text_area.cget("font"))
         italic_font.configure(slant="italic")
-        self.apply_tag("italic", italic_font)
-        self.update_combined_tags()
+        self.text_area.tag_configure("italic", font=italic_font)
+
+        current_tags = self.text_area.tag_names("sel.first")
+        if "italic" in current_tags:
+            self.text_area.tag_remove("italic", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("italic", "sel.first", "sel.last")
 
     def make_underline(self):
         underline_font = font.Font(self.text_area, self.text_area.cget("font"))
         underline_font.configure(underline=True)
-        self.apply_tag("underline", underline_font)
-        self.update_combined_tags()
+        self.text_area.tag_configure("underline", font=underline_font)
 
-    def update_combined_tags(self):
-        """Updates the font for combinations of bold, italic, and underline tags."""
-        # Create combined styles for bold, italic, and underline
-        combined_font = font.Font(self.text_area, self.text_area.cget("font"))
-        if "bold" in self.text_area.tag_names("sel.first"):
-            combined_font.configure(weight="bold")
-        if "italic" in self.text_area.tag_names("sel.first"):
-            combined_font.configure(slant="italic")
-        if "underline" in self.text_area.tag_names("sel.first"):
-            combined_font.configure(underline=True)
-        
-        # Configure the combined tag
-        self.text_area.tag_configure("combined", font=combined_font)
-        
-        # Apply or remove combined tag
         current_tags = self.text_area.tag_names("sel.first")
-        if "combined" in current_tags:
-            self.text_area.tag_remove("combined", "sel.first", "sel.last")
+        if "underline" in current_tags:
+            self.text_area.tag_remove("underline", "sel.first", "sel.last")
         else:
-            self.text_area.tag_add("combined", "sel.first", "sel.last")
+            self.text_area.tag_add("underline", "sel.first", "sel.last")
 
 
 if __name__ == "__main__":
