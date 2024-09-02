@@ -7,7 +7,7 @@ class TextEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Collaborative Word")
-        self.root.geometry("1980x1080")
+        self.root.geometry("1920x1080")
 
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
         self.text_area.pack(fill='both', expand=True)
@@ -180,7 +180,7 @@ class TextEditor:
 
     def make_underline(self):
         current_tags = self.text_area.tag_names("sel.first")
-        if "bold" in current_tags and "italic" in current_tags:
+        if "bolditalic" in current_tags:
             self.make_bolditalicunderline()
         elif "bold" in current_tags:
             self.make_boldunderline()
@@ -248,7 +248,6 @@ class TextEditor:
         bolditalicunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
         bolditalicunderline_font.configure(weight="bold", slant="italic", underline=True)
         self.text_area.tag_configure("bolditalicunderline", font=bolditalicunderline_font)
-
         current_tags = self.text_area.tag_names("sel.first")
         if "bolditalicunderline" in current_tags:
             self.text_area.tag_remove("bolditalicunderline", "sel.first", "sel.last")
@@ -293,7 +292,7 @@ class TextEditor:
         file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif")])
         if file_path:
             image = Image.open(file_path)
-            image.thumbnail((300, 300))  # Adjust size as needed
+            image.thumbnail((300, 300))
             self.image = ImageTk.PhotoImage(image)
             self.text_area.image_create(tk.INSERT, image=self.image)
 
