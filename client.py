@@ -1,10 +1,11 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, font, colorchooser
+from tkinter import filedialog, font, colorchooser
+from PIL import Image, ImageTk
 
 class TextEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("Colaborative Word")
+        self.root.title("Collaborative Word")
         self.root.geometry("1980x1080")
 
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
@@ -18,6 +19,7 @@ class TextEditor:
         self.main_menu.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Save", command=self.save_file)
         file_menu.add_command(label="Save As", command=self.save_as_file)
+        file_menu.add_command(label="Insert Image", command=self.insert_image)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
@@ -72,33 +74,39 @@ class TextEditor:
         return font_size_menu
 
     def apply_font(self):
-        # Konfiguriše font i veličinu za selektovani tekst
+        # Kreiranje novog tag-a sa jedinstvenim imenom
         selected_font = font.Font(family=self.font_var.get(), size=self.font_size_var.get())
-        self.text_area.tag_configure("selected_font", font=selected_font)
-        
-        current_tags = self.text_area.tag_names("sel.first")
-        if "selected_font" in current_tags:
-            self.text_area.tag_remove("selected_font", "sel.first", "sel.last")
-        self.text_area.tag_add("selected_font", "sel.first", "sel.last")
+        tag_name = f"font_{self.font_var.get()}_{self.font_size_var.get()}"
+
+        self.text_area.tag_configure(tag_name, font=selected_font)
+
+        try:
+            # Dodavanje tag-a samo na selektovani tekst
+            self.text_area.tag_add(tag_name, "sel.first", "sel.last")
+        except tk.TclError:
+            pass  # Ignorisi ako nema selektovanog teksta
 
     def change_text_color(self):
         color = colorchooser.askcolor()[1]
         if color:
-            self.text_area.tag_configure("color", foreground=color)
-            current_tags = self.text_area.tag_names("sel.first")
-            if "color" in current_tags:
-                self.text_area.tag_remove("color", "sel.first", "sel.last")
-            else:
-                self.text_area.tag_add("color", "sel.first", "sel.last")
+            tag_name = f"color_{color}"
+            self.text_area.tag_configure(tag_name, foreground=color)
+            try:
+                self.text_area.tag_add(tag_name, "sel.first", "sel.last")
+            except tk.TclError:
+                pass
 
     def cut_text(self):
         self.copy_text()
         self.text_area.delete("sel.first", "sel.last")
 
     def copy_text(self):
-        selected_text = self.text_area.get("sel.first", "sel.last")
-        self.root.clipboard_clear()
-        self.root.clipboard_append(selected_text)
+        try:
+            selected_text = self.text_area.get("sel.first", "sel.last")
+            self.root.clipboard_clear()
+            self.root.clipboard_append(selected_text)
+        except tk.TclError:
+            pass
 
     def paste_text(self):
         try:
@@ -141,33 +149,48 @@ class TextEditor:
         bold_font.configure(weight="bold")
         self.text_area.tag_configure("bold", font=bold_font)
 
-        current_tags = self.text_area.tag_names("sel.first")
-        if "bold" in current_tags:
-            self.text_area.tag_remove("bold", "sel.first", "sel.last")
-        else:
+        try:
+            current_tags = self.text_area.tag_names("sel.first")
+            if "bold" in current_tags:
+                self.text_area.tag_remove("bold", "sel.first", "sel.last")
             self.text_area.tag_add("bold", "sel.first", "sel.last")
+        except tk.TclError:
+            pass
 
     def make_italic(self):
         italic_font = font.Font(self.text_area, self.text_area.cget("font"))
         italic_font.configure(slant="italic")
         self.text_area.tag_configure("italic", font=italic_font)
 
-        current_tags = self.text_area.tag_names("sel.first")
-        if "italic" in current_tags:
-            self.text_area.tag_remove("italic", "sel.first", "sel.last")
-        else:
+        try:
+            current_tags = self.text_area.tag_names("sel.first")
+            if "italic" in current_tags:
+                self.text_area.tag_remove("italic", "sel.first", "sel.last")
             self.text_area.tag_add("italic", "sel.first", "sel.last")
+        except tk.TclError:
+            pass
 
     def make_underline(self):
         underline_font = font.Font(self.text_area, self.text_area.cget("font"))
         underline_font.configure(underline=True)
         self.text_area.tag_configure("underline", font=underline_font)
 
-        current_tags = self.text_area.tag_names("sel.first")
-        if "underline" in current_tags:
-            self.text_area.tag_remove("underline", "sel.first", "sel.last")
-        else:
+        try:
+            current_tags = self.text_area.tag_names("sel.first")
+            if "underline" in current_tags:
+                self.text_area.tag_remove("underline", "sel.first", "sel.last")
             self.text_area.tag_add("underline", "sel.first", "sel.last")
+        except tk.TclError:
+            pass
+
+    def insert_image(self):
+        image_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif"), ("All Files", "*.*")])
+        if image_path:
+            image = Image.open(image_path)
+            image.thumbnail((300, 300))  # Adjust size as needed
+            img = ImageTk.PhotoImage(image)
+            self.text_area.image_create(tk.END, image=img)
+            self.text_area.image = img  # Prevent garbage collection of the image
 
 
 if __name__ == "__main__":
