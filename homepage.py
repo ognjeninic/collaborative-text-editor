@@ -26,7 +26,20 @@ class HomePage:
         self.delete_button = tk.Button(self.root, text="Delete File", command=self.delete_file)
         self.delete_button.pack(side=tk.LEFT, padx=10)
 
+        self.exit_button = tk.Button(self.root, text="Exit Fullscreen", command=self.toggle_fullscreen)
+        self.exit_button.pack(side=tk.LEFT, padx=10)
+
         self.load_files()
+
+        # Bind Esc key to toggle fullscreen
+        self.root.bind("<Escape>", self.toggle_fullscreen)
+
+    def toggle_fullscreen(self, event=None):
+        # Toggle fullscreen
+        self.root.attributes("-fullscreen", not self.root.attributes("-fullscreen"))
+        if not self.root.attributes("-fullscreen"):
+            self.root.attributes("-topmost", True)
+            self.root.attributes("-topmost", False)
 
     def load_files(self):
         """Učitaj fajlove iz documents.json i prikaži ih u listbox-u"""
@@ -93,7 +106,6 @@ class HomePage:
             self.load_files()  # Osveži listu fajlova
 
     def delete_file(self):
-    
         selected_index = self.file_listbox.curselection()
         if selected_index:
             selected_file = self.file_listbox.get(selected_index)  # Uzmimo ime fajla iz listbox-a
