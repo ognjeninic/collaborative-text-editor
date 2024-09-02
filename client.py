@@ -4,12 +4,17 @@ from PIL import Image, ImageTk
 import webbrowser
 import homepage  # Import the homepage script
 import os
+import sys
+import subprocess
 
 class TextEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Collaborative Word")
-        self.root.geometry("1980x1080")
+        
+        # Set the window to fullscreen
+        self.root.attributes('-fullscreen', True)
+        self.root.bind('<Escape>', self.toggle_fullscreen)  # Bind Escape key to exit fullscreen
 
         # Initialize font variables
         self.font_var = tk.StringVar(value="Arial")
@@ -30,6 +35,11 @@ class TextEditor:
 
         # Bind events to track file modifications
         self.text_area.bind("<<Modified>>", self.on_text_modified)
+
+    def toggle_fullscreen(self, event=None):
+        """Toggle fullscreen mode."""
+        is_fullscreen = self.root.attributes('-fullscreen')
+        self.root.attributes('-fullscreen', not is_fullscreen)
 
     def add_toolbar_icons(self):
         """Adds icons to the toolbar for various functionalities."""
