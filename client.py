@@ -230,33 +230,149 @@ class TextEditor:
 
     def make_bold(self):
         current_tags = self.text_area.tag_names("sel.first")
-        if "bold" in current_tags:
-            self.text_area.tag_remove("bold", "sel.first", "sel.last")
+        if "italic" in current_tags and "underline" in current_tags:
+            self.make_bolditalicunderline()
+        elif "italic" in current_tags:
+            self.make_bolditalic()
+        elif "underline" in current_tags:
+            self.make_boldunderline()
         else:
             bold_font = font.Font(self.text_area, self.text_area.cget("font"))
             bold_font.configure(weight="bold")
             self.text_area.tag_configure("bold", font=bold_font)
-            self.text_area.tag_add("bold", "sel.first", "sel.last")
+
+            if "bold" in current_tags:
+                self.text_area.tag_remove("bold", "sel.first", "sel.last")
+            else:
+                self.text_area.tag_add("bold", "sel.first", "sel.last")
 
     def make_italic(self):
         current_tags = self.text_area.tag_names("sel.first")
-        if "italic" in current_tags:
-            self.text_area.tag_remove("italic", "sel.first", "sel.last")
+        if "bold" in current_tags and "underline" in current_tags:
+            self.make_bolditalicunderline()
+        elif "bold" in current_tags:
+            self.make_bolditalic()
+        elif "underline" in current_tags:
+            self.make_italicunderline()
         else:
             italic_font = font.Font(self.text_area, self.text_area.cget("font"))
             italic_font.configure(slant="italic")
             self.text_area.tag_configure("italic", font=italic_font)
-            self.text_area.tag_add("italic", "sel.first", "sel.last")
+
+            if "italic" in current_tags:
+                self.text_area.tag_remove("italic", "sel.first", "sel.last")
+            else:
+                self.text_area.tag_add("italic", "sel.first", "sel.last")
 
     def make_underline(self):
         current_tags = self.text_area.tag_names("sel.first")
-        if "underline" in current_tags:
-            self.text_area.tag_remove("underline", "sel.first", "sel.last")
+        if "bolditalic" in current_tags:
+            self.make_bolditalicunderline()
+        elif "bold" in current_tags:
+            self.make_boldunderline()
+        elif "italic" in current_tags:
+            self.make_italicunderline()
         else:
             underline_font = font.Font(self.text_area, self.text_area.cget("font"))
-            underline_font.configure(underline=1)
+            underline_font.configure(underline=True)
             self.text_area.tag_configure("underline", font=underline_font)
-            self.text_area.tag_add("underline", "sel.first", "sel.last")
+
+            if "underline" in current_tags:
+                self.text_area.tag_remove("underline", "sel.first", "sel.last")
+            else:
+                self.text_area.tag_add("underline", "sel.first", "sel.last")
+
+    def make_bolditalic(self):
+        bolditalic_font = font.Font(self.text_area, self.text_area.cget("font"))
+        bolditalic_font.configure(weight="bold", slant="italic")
+        self.text_area.tag_configure("bolditalic", font=bolditalic_font)
+
+        current_tags = self.text_area.tag_names("sel.first")
+        if "bolditalic" in current_tags:
+            self.text_area.tag_remove("bolditalic", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("bolditalic", "sel.first", "sel.last")
+
+        if "bold" in current_tags:
+            self.text_area.tag_remove("bold", "sel.first", "sel.last")
+        if "italic" in current_tags:
+            self.text_area.tag_remove("italic", "sel.first", "sel.last")
+
+    def make_boldunderline(self):
+        boldunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
+        boldunderline_font.configure(weight="bold", underline=True)
+        self.text_area.tag_configure("boldunderline", font=boldunderline_font)
+
+        current_tags = self.text_area.tag_names("sel.first")
+        if "boldunderline" in current_tags:
+            self.text_area.tag_remove("boldunderline", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("boldunderline", "sel.first", "sel.last")
+
+        if "bold" in current_tags:
+            self.text_area.tag_remove("bold", "sel.first", "sel.last")
+        if "underline" in current_tags:
+            self.text_area.tag_remove("underline", "sel.first", "sel.last")
+
+    def make_italicunderline(self):
+        italicunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
+        italicunderline_font.configure(slant="italic", underline=True)
+        self.text_area.tag_configure("italicunderline", font=italicunderline_font)
+
+        current_tags = self.text_area.tag_names("sel.first")
+        if "italicunderline" in current_tags:
+            self.text_area.tag_remove("italicunderline", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("italicunderline", "sel.first", "sel.last")
+
+        if "italic" in current_tags:
+            self.text_area.tag_remove("italic", "sel.first", "sel.last")
+        if "underline" in current_tags:
+            self.text_area.tag_remove("underline", "sel.first", "sel.last")
+
+    def make_bolditalicunderline(self):
+        bolditalicunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
+        bolditalicunderline_font.configure(weight="bold", slant="italic", underline=True)
+        self.text_area.tag_configure("bolditalicunderline", font=bolditalicunderline_font)
+        current_tags = self.text_area.tag_names("sel.first")
+        if "bolditalicunderline" in current_tags:
+            self.text_area.tag_remove("bolditalicunderline", "sel.first", "sel.last")
+        else:
+            self.text_area.tag_add("bolditalicunderline", "sel.first", "sel.last")
+
+        if "bold" in current_tags:
+            self.text_area.tag_remove("bold", "sel.first", "sel.last")
+        if "italic" in current_tags:
+            self.text_area.tag_remove("italic", "sel.first", "sel.last")
+        if "underline" in current_tags:
+            self.text_area.tag_remove("underline", "sel.first", "sel.last")
+
+    def insert_hyperlink_with_hover(self):
+        url = simpledialog.askstring("Insert Hyperlink", "Enter URL:")
+        if url:
+            display_text = simpledialog.askstring("Insert Hyperlink", "Enter the display text:")
+            if not display_text:
+                display_text = url  
+
+        link = self.hyperlink(self.root, url, text=display_text)
+        self.text_area.window_create(tk.INSERT, window=link)
+
+
+    def hyperlink(self, root, link: str, **kwargs) -> tk.Label:
+        
+        for i in (("fg", "magenta"), ("text", "Hyperlink!"), ("font", "None 10"), ("cursor", "hand2")):
+            kwargs.setdefault(i[0], i[1])
+
+        
+        label = tk.Label(root, **kwargs)
+        label.link = link
+
+        
+        label.bind("<Button-1>", lambda e: webbrowser.open(e.widget.link))
+        label.bind("<Enter>", lambda e: e.widget.configure(font=e.widget.cget("font") + " underline"))
+        label.bind("<Leave>", lambda e: e.widget.configure(font=e.widget.cget("font")[:-10]))
+
+        return label 
 
     def insert_image(self):
         file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif")])
