@@ -6,8 +6,8 @@ import os
 class HomePage:
     def __init__(self, root):
         self.root = root
-        self.root.title("Collaborative Word - Home Page")
-        self.root.geometry("600x400")
+        self.root.title("Home Page")
+        self.root.attributes("-fullscreen", True)
 
         # Lista fajlova
         self.file_listbox = tk.Listbox(self.root, height=15, width=50)
