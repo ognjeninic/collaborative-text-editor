@@ -1,6 +1,7 @@
 import tkinter as tk
-from tkinter import filedialog, font, colorchooser
+from tkinter import filedialog, font, colorchooser, simpledialog
 from PIL import Image, ImageTk
+import webbrowser
 
 class TextEditor:
     def __init__(self, root):
@@ -44,6 +45,7 @@ class TextEditor:
         format_menu.add_command(label="Italic", command=self.make_italic)
         format_menu.add_command(label="Underline", command=self.make_underline)
         format_menu.add_separator()
+        format_menu.add_command(label="Insert Hyperlink", command=self.insert_hyperlink_with_hover)
         format_menu.add_command(label="Text Color", command=self.change_text_color)
 
         # Font menu
@@ -74,17 +76,13 @@ class TextEditor:
         return font_size_menu
 
     def apply_font(self):
-        # Kreiranje novog tag-a sa jedinstvenim imenom
         selected_font = font.Font(family=self.font_var.get(), size=self.font_size_var.get())
         tag_name = f"font_{self.font_var.get()}_{self.font_size_var.get()}"
-
         self.text_area.tag_configure(tag_name, font=selected_font)
-
         try:
-            # Dodavanje tag-a samo na selektovani tekst
             self.text_area.tag_add(tag_name, "sel.first", "sel.last")
         except tk.TclError:
-            pass  # Ignorisi ako nema selektovanog teksta
+            pass
 
     def change_text_color(self):
         color = colorchooser.askcolor()[1]
@@ -209,7 +207,6 @@ class TextEditor:
         else:
             self.text_area.tag_add("bolditalic", "sel.first", "sel.last")
 
-        # Remove individual bold and italic tags
         if "bold" in current_tags:
             self.text_area.tag_remove("bold", "sel.first", "sel.last")
         if "italic" in current_tags:
@@ -226,7 +223,6 @@ class TextEditor:
         else:
             self.text_area.tag_add("boldunderline", "sel.first", "sel.last")
 
-        # Remove individual bold and underline tags
         if "bold" in current_tags:
             self.text_area.tag_remove("bold", "sel.first", "sel.last")
         if "underline" in current_tags:
@@ -243,7 +239,6 @@ class TextEditor:
         else:
             self.text_area.tag_add("italicunderline", "sel.first", "sel.last")
 
-        # Remove individual italic and underline tags
         if "italic" in current_tags:
             self.text_area.tag_remove("italic", "sel.first", "sel.last")
         if "underline" in current_tags:
@@ -260,7 +255,6 @@ class TextEditor:
         else:
             self.text_area.tag_add("bolditalicunderline", "sel.first", "sel.last")
 
-        # Remove individual bold, italic, and underline tags
         if "bold" in current_tags:
             self.text_area.tag_remove("bold", "sel.first", "sel.last")
         if "italic" in current_tags:
@@ -268,15 +262,40 @@ class TextEditor:
         if "underline" in current_tags:
             self.text_area.tag_remove("underline", "sel.first", "sel.last")
 
-    def insert_image(self):
-        image_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif"), ("All Files", "*.*")])
-        if image_path:
-            image = Image.open(image_path)
-            image.thumbnail((300, 300))  # Adjust size as needed
-            img = ImageTk.PhotoImage(image)
-            self.text_area.image_create(tk.END, image=img)
-            self.text_area.image = img  # Prevent garbage collection of the image
+    def insert_hyperlink_with_hover(self):
+        url = simpledialog.askstring("Insert Hyperlink", "Enter URL:")
+        if url:
+            display_text = simpledialog.askstring("Insert Hyperlink", "Enter the display text:")
+            if not display_text:
+                display_text = url  
 
+        link = self.hyperlink(self.root, url, text=display_text)
+        self.text_area.window_create(tk.INSERT, window=link)
+
+
+    def hyperlink(self, root, link: str, **kwargs) -> tk.Label:
+        
+        for i in (("fg", "magenta"), ("text", "Hyperlink!"), ("font", "None 10"), ("cursor", "hand2")):
+            kwargs.setdefault(i[0], i[1])
+
+        
+        label = tk.Label(root, **kwargs)
+        label.link = link
+
+        
+        label.bind("<Button-1>", lambda e: webbrowser.open(e.widget.link))
+        label.bind("<Enter>", lambda e: e.widget.configure(font=e.widget.cget("font") + " underline"))
+        label.bind("<Leave>", lambda e: e.widget.configure(font=e.widget.cget("font")[:-10]))
+
+        return label
+
+    def insert_image(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif")])
+        if file_path:
+            image = Image.open(file_path)
+            image.thumbnail((300, 300))  # Adjust size as needed
+            self.image = ImageTk.PhotoImage(image)
+            self.text_area.image_create(tk.INSERT, image=self.image)
 
 if __name__ == "__main__":
     root = tk.Tk()
