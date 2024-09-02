@@ -30,11 +30,18 @@ class TextEditor:
         self.text_area = tk.Text(self.root, wrap='word', undo=True)
         self.text_area.pack(fill='both', expand=True)
 
+        # Initialize image list for holding image references
+        self.text_area.image_list = []
+
         # Create toolbar icons and functionality
         self.add_toolbar_icons()
 
         # Bind events to track file modifications
         self.text_area.bind("<<Modified>>", self.on_text_modified)
+
+        # Bind keyboard shortcuts for undo and redo
+        self.root.bind('<Control-z>', self.undo)
+        self.root.bind('<Control-y>', self.redo)
 
     def toggle_fullscreen(self, event=None):
         """Toggle fullscreen mode."""
@@ -55,7 +62,9 @@ class TextEditor:
             "text_color": Image.open("static/textcolor-icon.png").resize(icon_size, Image.LANCZOS),
             "insert_image": Image.open("static/image-icon.png").resize(icon_size, Image.LANCZOS),
             "insert_link": Image.open("static/link-icon.png").resize(icon_size, Image.LANCZOS),
-            "change_font": Image.open("static/font-icon.png").resize(icon_size, Image.LANCZOS)
+            "change_font": Image.open("static/font-icon.png").resize(icon_size, Image.LANCZOS),
+            "undo": Image.open("static/undo-icon.png").resize(icon_size, Image.LANCZOS),
+            "redo": Image.open("static/redo-icon.png").resize(icon_size, Image.LANCZOS)
         }
 
         # Convert images to PhotoImage objects
@@ -89,6 +98,8 @@ class TextEditor:
         tk.Button(self.toolbar, image=self.icons["text_color"], command=self.change_text_color).pack(side=tk.LEFT, padx=2, pady=2)
         tk.Button(self.toolbar, image=self.icons["insert_image"], command=self.insert_image).pack(side=tk.LEFT, padx=2, pady=2)
         tk.Button(self.toolbar, image=self.icons["insert_link"], command=self.insert_link).pack(side=tk.LEFT, padx=2, pady=2)
+        tk.Button(self.toolbar, image=self.icons["undo"], command=self.undo).pack(side=tk.LEFT, padx=2, pady=2)
+        tk.Button(self.toolbar, image=self.icons["redo"], command=self.redo).pack(side=tk.LEFT, padx=2, pady=2)
 
     def create_file_menu(self, menu):
         """Creates a dropdown menu for file operations."""
@@ -228,6 +239,14 @@ class TextEditor:
         """Update the modified status when text changes."""
         self.is_file_modified = True
 
+    def undo(self, event=None):
+        """Undo the last operation."""
+        self.text_area.edit_undo()
+
+    def redo(self, event=None):
+        """Redo the last undone operation."""
+        self.text_area.edit_redo()
+
     def make_bold(self):
         current_tags = self.text_area.tag_names("sel.first")
         if "italic" in current_tags and "underline" in current_tags:
@@ -357,17 +376,13 @@ class TextEditor:
         link = self.hyperlink(self.root, url, text=display_text)
         self.text_area.window_create(tk.INSERT, window=link)
 
-
     def hyperlink(self, root, link: str, **kwargs) -> tk.Label:
-        
         for i in (("fg", "magenta"), ("text", "Hyperlink!"), ("font", "None 10"), ("cursor", "hand2")):
             kwargs.setdefault(i[0], i[1])
 
-        
         label = tk.Label(root, **kwargs)
         label.link = link
 
-        
         label.bind("<Button-1>", lambda e: webbrowser.open(e.widget.link))
         label.bind("<Enter>", lambda e: e.widget.configure(font=e.widget.cget("font") + " underline"))
         label.bind("<Leave>", lambda e: e.widget.configure(font=e.widget.cget("font")[:-10]))
