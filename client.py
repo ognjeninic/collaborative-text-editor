@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import filedialog, font, colorchooser, simpledialog
+from tkinter import filedialog, font, colorchooser, simpledialog, messagebox
 from PIL import Image, ImageTk
 import webbrowser
+import homepage  # Import the homepage script
+import os
 
 class TextEditor:
     def __init__(self, root):
@@ -15,6 +17,7 @@ class TextEditor:
         
         # Initialize file variable
         self.current_file = None
+        self.is_file_modified = False
 
         # Toolbar and text area setup
         self.toolbar = tk.Frame(self.root, bd=1, relief=tk.RAISED)
@@ -24,6 +27,9 @@ class TextEditor:
 
         # Create toolbar icons and functionality
         self.add_toolbar_icons()
+
+        # Bind events to track file modifications
+        self.text_area.bind("<<Modified>>", self.on_text_modified)
 
     def add_toolbar_icons(self):
         """Adds icons to the toolbar for various functionalities."""
@@ -80,6 +86,7 @@ class TextEditor:
         menu.add_command(label="Open", command=self.open_file)
         menu.add_command(label="Save", command=self.save_file)
         menu.add_command(label="Save As", command=self.save_as_file)
+        menu.add_command(label="Exit", command=self.exit_file)
 
     def create_clipboard_menu(self, menu):
         """Creates a dropdown menu for clipboard operations."""
@@ -145,10 +152,17 @@ class TextEditor:
             pass
 
     def new_file(self):
+        if self.is_file_modified:
+            if not self.ask_save_changes():
+                return
         self.text_area.delete(1.0, tk.END)
         self.current_file = None
+        self.is_file_modified = False
 
     def open_file(self):
+        if self.is_file_modified:
+            if not self.ask_save_changes():
+                return
         self.current_file = filedialog.askopenfilename(defaultextension=".txt",
                                                        filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if self.current_file:
@@ -156,6 +170,7 @@ class TextEditor:
                 content = file.read()
                 self.text_area.delete(1.0, tk.END)
                 self.text_area.insert(tk.END, content)
+                self.is_file_modified = False
 
     def save_file(self):
         if not self.current_file:
@@ -163,6 +178,7 @@ class TextEditor:
         else:
             with open(self.current_file, "w") as file:
                 file.write(self.text_area.get(1.0, tk.END))
+                self.is_file_modified = False
 
     def save_as_file(self):
         self.current_file = filedialog.asksaveasfilename(defaultextension=".txt",
@@ -170,6 +186,37 @@ class TextEditor:
         if self.current_file:
             with open(self.current_file, "w") as file:
                 file.write(self.text_area.get(1.0, tk.END))
+                self.is_file_modified = False
+
+    def exit_file(self):
+        if self.is_file_modified:
+            if not self.ask_save_changes():
+                return
+        
+        # Close the current application
+        self.root.destroy()
+        
+        # Start homepage.py
+        script_path = os.path.abspath("homepage.py")
+        subprocess.Popen([sys.executable, script_path])
+        
+        # Optionally, you could terminate the current script if needed
+        # sys.exit()
+
+    def ask_save_changes(self):
+        """Prompt the user to save changes if the file is modified."""
+        response = messagebox.askyesnocancel("Unsaved Changes", "You have unsaved changes. Do you want to save them?")
+        if response:  # Yes
+            self.save_file()
+            return True
+        elif response is False:  # No
+            return True
+        else:  # Cancel
+            return False
+
+    def on_text_modified(self, event):
+        """Update the modified status when text changes."""
+        self.is_file_modified = True
 
     def make_bold(self):
         current_tags = self.text_area.tag_names("sel.first")
