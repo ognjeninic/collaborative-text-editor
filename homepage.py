@@ -26,8 +26,6 @@ class HomePage:
         self.delete_button = tk.Button(self.root, text="Delete File", command=self.delete_file)
         self.delete_button.pack(side=tk.LEFT, padx=10)
 
-        self.exit_button = tk.Button(self.root, text="Exit Fullscreen", command=self.toggle_fullscreen)
-        self.exit_button.pack(side=tk.LEFT, padx=10)
 
         self.load_files()
 
