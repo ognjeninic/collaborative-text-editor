@@ -43,10 +43,18 @@ class TextEditor:
         self.root.bind('<Control-z>', self.undo)
         self.root.bind('<Control-y>', self.redo)
 
+        # Create a label for the word counter
+        self.word_count_label = tk.Label(self.toolbar, text="Words: 0")
+        self.word_count_label.pack(side=tk.RIGHT, padx=10)
+
+        # Bind events to track file modifications and word count
+        self.text_area.bind("<<Modified>>", self.on_text_modified)
+
     def toggle_fullscreen(self, event=None):
         """Toggle fullscreen mode."""
         is_fullscreen = self.root.attributes('-fullscreen')
         self.root.attributes('-fullscreen', not is_fullscreen)
+
 
     def add_toolbar_icons(self):
         """Adds icons to the toolbar for various functionalities."""
@@ -188,10 +196,10 @@ class TextEditor:
                                                        filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if self.current_file:
             with open(self.current_file, "r") as file:
-                content = file.read()
                 self.text_area.delete(1.0, tk.END)
-                self.text_area.insert(tk.END, content)
-                self.is_file_modified = False
+                self.text_area.insert(tk.END, file.read())
+            self.is_file_modified = False
+            self.update_word_count()  # Update word count after opening a file
 
     def save_file(self):
         if not self.current_file:
@@ -234,18 +242,27 @@ class TextEditor:
             return True
         else:  # Cancel
             return False
-
-    def on_text_modified(self, event):
-        """Update the modified status when text changes."""
-        self.is_file_modified = True
+        
+        
+    def update_word_count(self):
+        text_content = self.text_area.get(1.0, tk.END)
+        word_count = len(text_content.split())
+        self.word_count_label.config(text=f"Words: {word_count}")
+        
+    def on_text_modified(self, event=None):
+        self.is_file_modified = self.text_area.edit_modified()
+        self.text_area.edit_modified(False)
+        self.update_word_count()
 
     def undo(self, event=None):
         """Undo the last operation."""
         self.text_area.edit_undo()
+        self.update_word_count()
 
     def redo(self, event=None):
         """Redo the last undone operation."""
         self.text_area.edit_redo()
+        self.update_word_count()
 
     def make_bold(self):
         current_tags = self.text_area.tag_names("sel.first")
