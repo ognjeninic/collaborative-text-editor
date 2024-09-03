@@ -5,9 +5,10 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 import threading
 import time
+import logging
 
-
-
+my_address = ""
+logging.basicConfig(level=logging.DEBUG)
 # Function to handle receiving updates from the server
 async def listen_for_updates(text_widget, uri, doc_id_var):
     while True:
@@ -24,26 +25,27 @@ async def listen_for_updates(text_widget, uri, doc_id_var):
 
                         # Handle document updates
                         if data['type'] == 'update':
-                            cursor_position = text_widget.index(tk.INSERT)
-                            text_widget.delete('1.0', tk.END)
-                            text_widget.insert(tk.END, data['content'])
-                            try:
-                                text_widget.mark_set(tk.INSERT, cursor_position)
-                            except tk.TclError:
-                                text_widget.mark_set(tk.INSERT, tk.END)
+                            if data['remote_address'] != my_address:
+                                cursor_position = text_widget.index(tk.INSERT)
+                                text_widget.delete('1.0', tk.END)
+                                text_widget.insert(tk.END, data['content'])
+                                try:
+                                    text_widget.mark_set(tk.INSERT, cursor_position)
+                                except tk.TclError:
+                                    text_widget.mark_set(tk.INSERT, tk.END)
 
                         # Handle metadata updates
                         elif data['type'] == 'metadata':
                             doc_id = select_document(data['documents'])
+                            my_address = data['remote_address']
                             doc_id_var.set(doc_id)
 
                             ################
-                            doc_id = "abc123"
-                            await websocket.send(json.dumps({
+                            """await websocket.send(json.dumps({
                                 'type': 'create',
                                 'doc_id': doc_id,
                                 'name': "sabac"
-                            }))
+                            }))"""
                             ################
 
                             await websocket.send(json.dumps({
@@ -85,7 +87,8 @@ async def send_edit(text_widget, uri, doc_id_var):
                                 await websocket.send(json.dumps({
                                     'type': 'edit',
                                     'doc_id': doc_id,
-                                    'content': current_content
+                                    'content': current_content,
+                                    'remote_address': my_address
                                 }))
                             previous_content = current_content
                         await asyncio.sleep(0.5)
@@ -111,7 +114,7 @@ def select_document(documents):
     #doc_id = simpledialog.askstring("Select Document", f"Available documents:\n{doc_list}\n\nEnter document ID to open:")
     #print(doc_id)
     #return doc_id
-    return "abc123"
+    return "1"
 
 # Function to start the asyncio event loop
 def start_asyncio_loop(loop):
