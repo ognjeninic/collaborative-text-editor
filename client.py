@@ -2,11 +2,11 @@ import tkinter as tk
 from tkinter import filedialog, font, colorchooser, simpledialog, messagebox
 from PIL import Image, ImageTk
 import webbrowser
-import homepage  # Import the homepage script
 import os
 import sys
 import subprocess
 from docx import Document
+from docx.shared import RGBColor, Pt
 
 class TextEditor:
     def __init__(self, root):
@@ -204,12 +204,74 @@ class TextEditor:
             self.current_file = file_path
             self.is_file_modified = False
 
+    def save_to_docx_with_formatting(self, doc, content, tags_info):
+        """
+        Save the text content along with its formatting to a .docx file.
+        """
+        doc = Document()
+        paragraph = doc.add_paragraph()
+        # Initialize the position tracker
+        current_position = 0
+
+        # Iterate through the tags and content to apply formatting
+        for tag_range, tag_dict in tags_info.items():
+            print(tag_range)
+            print(tag_dict)
+            start_idx, end_idx = tag_range
+            text_segment = content[start_idx:end_idx]
+
+            # Add the text to the document
+            run = paragraph.add_run(text_segment)
+            doc.save(self.current_file)
+            # Apply the formatting
+            #runf = self.apply_run_formatting(run, tag_dict)
+
+        
+
+    def apply_run_formatting(self, run, tag_dict):
+        """
+        Apply the extracted formatting from tags to a document run.
+        """
+        if "bold" in tag_dict:
+            run.bold = True
+        if "italic" in tag_dict:
+            run.italic = True
+        if "underline" in tag_dict:
+            run.underline = True
+        if "foreground" in tag_dict:
+            # Convert color from hex to RGB
+            hex_color = tag_dict["foreground"]
+            run.font.color.rgb = RGBColor(int(hex_color[1:3], 16), int(hex_color[3:5], 16), int(hex_color[5:7], 16))
+        if "font" in tag_dict:
+            font_family, font_size = tag_dict["font"].split("_")[1:]
+            run.font.name = font_family
+            run.font.size = Pt(int(font_size))
+
+    def get_text_with_tags(self):
+        """
+        Get the text along with all tags and their ranges.
+        """
+        content = self.text_area.get("1.0", "end-1c")  # All text without the last newline
+        tags_info = {}
+        for tag in self.text_area.tag_names():
+            ranges = self.text_area.tag_ranges(tag)
+            for i in range(0, len(ranges), 2):
+                start = self.text_area.index(ranges[i])
+                end = self.text_area.index(ranges[i + 1])
+                start_idx = self.text_area.count("1.0", start)[0]
+                end_idx = self.text_area.count("1.0", end)[0]
+                if (start_idx, end_idx) not in tags_info:
+                    tags_info[(start_idx, end_idx)] = {}
+                tags_info[(start_idx, end_idx)][tag] = self.text_area.tag_cget(tag, "foreground") if tag.startswith("color_") else True
+        return content, tags_info
+
     def save_file(self):
         if self.current_file:
-            doc = Document()
-            content = self.text_area.get(1.0, tk.END)
-            doc.add_paragraph(content)
-            doc.save(self.current_file)
+            
+            content, tags_info = self.get_text_with_tags()
+            self.save_to_docx_with_formatting(content, tags_info)
+            print(tags_info)
+            
             self.is_file_modified = False
         else:
             self.save_as_file()
@@ -218,8 +280,8 @@ class TextEditor:
         file_path = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Files", "*.docx")])
         if file_path:
             doc = Document()
-            content = self.text_area.get(1.0, tk.END)
-            doc.add_paragraph(content)
+            content, tags_info = self.get_text_with_tags()
+            self.save_to_docx_with_formatting(doc, content, tags_info)
             doc.save(file_path)
             self.current_file = file_path
             self.is_file_modified = False
@@ -257,7 +319,6 @@ class TextEditor:
         self.word_count_label.config(text=f"Words: {word_count}")
         
     def on_text_modified(self, event=None):
-        print("MOD")
         self.is_file_modified = self.text_area.edit_modified()
         self.text_area.edit_modified(False)
         self.update_word_count()
