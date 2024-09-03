@@ -204,7 +204,7 @@ class TextEditor:
             self.current_file = file_path
             self.is_file_modified = False
 
-    def save_to_docx_with_formatting(self, doc, content, tags_info):
+    def save_to_docx_with_formatting(self, content, tags_info):
         """
         Save the text content along with its formatting to a .docx file.
         """
@@ -215,16 +215,34 @@ class TextEditor:
 
         # Iterate through the tags and content to apply formatting
         for tag_range, tag_dict in tags_info.items():
-            print(tag_range)
-            print(tag_dict)
+            print(tags_info)
             start_idx, end_idx = tag_range
+            print(start_idx)
             text_segment = content[start_idx:end_idx]
-
             # Add the text to the document
             run = paragraph.add_run(text_segment)
+            print(run)
+            if "bold" in tag_dict:
+                run.bold = True
+                print("bold")
+            if "italic" in tag_dict:
+                run.italic = True
+                print("italic")
+            if "underline" in tag_dict:
+                run.underline = True
+                print("uncerline")
+            if "foreground" in tag_dict:
+                print("foreground")
+                # Convert color from hex to RGB
+                hex_color = tag_dict["foreground"]
+                run.font.color.rgb = RGBColor(int(hex_color[1:3], 16), int(hex_color[3:5], 16), int(hex_color[5:7], 16))
+            if "font" in tag_dict:
+                print("font")
+                font_family, font_size = tag_dict["font"].split("_")[1:]
+                run.font.name = font_family
+                run.font.size = Pt(int(font_size))
             doc.save(self.current_file)
-            # Apply the formatting
-            #runf = self.apply_run_formatting(run, tag_dict)
+            
 
         
 
@@ -254,15 +272,29 @@ class TextEditor:
         content = self.text_area.get("1.0", "end-1c")  # All text without the last newline
         tags_info = {}
         for tag in self.text_area.tag_names():
+            if tag == "sel":
+                continue
+            print(tag)
             ranges = self.text_area.tag_ranges(tag)
             for i in range(0, len(ranges), 2):
+                #print(f"ranges[i] {ranges[i]}")
                 start = self.text_area.index(ranges[i])
                 end = self.text_area.index(ranges[i + 1])
-                start_idx = self.text_area.count("1.0", start)[0]
+                print(f"start {start} end {end}")
+                try:
+                    start_idx = self.text_area.count("1.0", start)[0]
+                except TypeError:
+                    start_idx = 0
                 end_idx = self.text_area.count("1.0", end)[0]
+
+                if start_idx is None or end_idx is None:
+                    print(f"Invalid range for tag '{tag}': start={start}, end={end}")
+                    continue
+
                 if (start_idx, end_idx) not in tags_info:
                     tags_info[(start_idx, end_idx)] = {}
                 tags_info[(start_idx, end_idx)][tag] = self.text_area.tag_cget(tag, "foreground") if tag.startswith("color_") else True
+        print(f"TAGS INFO \n {tags_info}")
         return content, tags_info
 
     def save_file(self):
@@ -270,7 +302,7 @@ class TextEditor:
             
             content, tags_info = self.get_text_with_tags()
             self.save_to_docx_with_formatting(content, tags_info)
-            print(tags_info)
+            print("SAVE FILE GO TO SAVE TO DOCX")
             
             self.is_file_modified = False
         else:
@@ -279,11 +311,10 @@ class TextEditor:
     def save_as_file(self):
         file_path = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Files", "*.docx")])
         if file_path:
-            doc = Document()
+            with open(file_path, 'w') as f:
+                f.write("")
             content, tags_info = self.get_text_with_tags()
-            self.save_to_docx_with_formatting(doc, content, tags_info)
-            doc.save(file_path)
-            self.current_file = file_path
+            self.save_to_docx_with_formatting(content, tags_info)
             self.is_file_modified = False
 
     def exit_file(self):
