@@ -14,7 +14,8 @@ class TextEditor:
         self.root.title("Collaborative Word")
         
         # Set the window to fullscreen
-        self.root.attributes('-fullscreen', True)
+        #self.root.attributes('-topmost', True)
+        self.root.state('zoomed')
         self.root.bind('<Escape>', self.toggle_fullscreen)  # Bind Escape key to exit fullscreen
 
         # Initialize font variables
@@ -50,6 +51,7 @@ class TextEditor:
 
         # Bind events to track file modifications and word count
         self.text_area.bind("<<Modified>>", self.on_text_modified)
+        root.protocol("WM_DELETE_WINDOW", self.exit_file)
 
     def toggle_fullscreen(self, event=None):
         """Toggle fullscreen mode."""

@@ -7,7 +7,6 @@ class HomePage:
     def __init__(self, root):
         self.root = root
         self.root.title("Home Page")
-        self.root.attributes("-fullscreen", True)
 
         # Lista fajlova
         self.file_listbox = tk.Listbox(self.root, height=15, width=50)
@@ -15,16 +14,16 @@ class HomePage:
 
         # Dugmad
         self.open_button = tk.Button(self.root, text="Open File", command=self.open_file)
-        self.open_button.pack(side=tk.LEFT, padx=10)
+        self.open_button.pack(side=tk.LEFT, padx=10, pady=(0,15))
 
         self.new_button = tk.Button(self.root, text="New File", command=self.new_file)
-        self.new_button.pack(side=tk.LEFT, padx=10)
+        self.new_button.pack(side=tk.LEFT, padx=10, pady=(0,15))
 
         self.upload_button = tk.Button(self.root, text="Upload File", command=self.upload_file)
-        self.upload_button.pack(side=tk.LEFT, padx=10)
+        self.upload_button.pack(side=tk.LEFT, padx=10, pady=(0,15))
 
         self.delete_button = tk.Button(self.root, text="Delete File", command=self.delete_file)
-        self.delete_button.pack(side=tk.LEFT, padx=10)
+        self.delete_button.pack(side=tk.LEFT, padx=10, pady=(0,15))
 
 
         self.load_files()
