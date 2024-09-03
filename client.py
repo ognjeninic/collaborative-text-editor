@@ -192,30 +192,34 @@ class TextEditor:
         if self.is_file_modified:
             if not self.ask_save_changes():
                 return
-        self.current_file = filedialog.askopenfilename(defaultextension=".txt",
-                                                       filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
-        if self.current_file:
-            with open(self.current_file, "r") as file:
-                self.text_area.delete(1.0, tk.END)
-                self.text_area.insert(tk.END, file.read())
+        file_path = filedialog.askopenfilename(filetypes=[("Word Files", "*.docx")])
+        if file_path:
+            doc = Document(file_path)
+            content = "\n".join([p.text for p in doc.paragraphs])
+            self.text_area.delete(1.0, tk.END)
+            self.text_area.insert(tk.END, content)
+            self.current_file = file_path
             self.is_file_modified = False
-            self.update_word_count()  # Update word count after opening a file
 
     def save_file(self):
-        if not self.current_file:
-            self.save_as_file()
+        if self.current_file:
+            doc = Document()
+            content = self.text_area.get(1.0, tk.END)
+            doc.add_paragraph(content)
+            doc.save(self.current_file)
+            self.is_file_modified = False
         else:
-            with open(self.current_file, "w") as file:
-                file.write(self.text_area.get(1.0, tk.END))
-                self.is_file_modified = False
+            self.save_as_file()
 
     def save_as_file(self):
-        self.current_file = filedialog.asksaveasfilename(defaultextension=".txt",
-                                                         filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
-        if self.current_file:
-            with open(self.current_file, "w") as file:
-                file.write(self.text_area.get(1.0, tk.END))
-                self.is_file_modified = False
+        file_path = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Files", "*.docx")])
+        if file_path:
+            doc = Document()
+            content = self.text_area.get(1.0, tk.END)
+            doc.add_paragraph(content)
+            doc.save(file_path)
+            self.current_file = file_path
+            self.is_file_modified = False
 
     def exit_file(self):
         if self.is_file_modified:
