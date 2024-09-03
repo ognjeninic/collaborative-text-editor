@@ -6,6 +6,7 @@ import homepage  # Import the homepage script
 import os
 import sys
 import subprocess
+from docx import Document
 
 class TextEditor:
     def __init__(self, root):
@@ -254,6 +255,7 @@ class TextEditor:
         self.word_count_label.config(text=f"Words: {word_count}")
         
     def on_text_modified(self, event=None):
+        print("MOD")
         self.is_file_modified = self.text_area.edit_modified()
         self.text_area.edit_modified(False)
         self.update_word_count()
