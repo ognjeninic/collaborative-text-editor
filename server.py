@@ -3,6 +3,10 @@ import websockets
 import json
 import os
 from collections import defaultdict
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Document state: {doc_id: {'content': '', 'version': 0, 'name': 'document_name'}}
 documents = defaultdict(lambda: {'content': '', 'version': 0, 'name': ''})
@@ -26,6 +30,7 @@ def load_documents():
     if os.path.exists(metadata_file):
         with open(metadata_file, 'r') as f:
             metadata = json.load(f)
+            print(f"OTVOREN METADATA.JSON\n{metadata}")
     else:
         metadata = {}
 
@@ -75,9 +80,11 @@ async def handler(websocket, path):
     # Send the metadata to the new client
     await websocket.send(json.dumps({
         'type': 'metadata',
-        'documents': metadata
+        'documents': metadata,
+        'remote_address': websocket.remote_address[0]
     }))
     print(metadata)
+    print(f"VEBSOKET {websocket.remote_address}")
 
     try:
         async for message in websocket:
@@ -91,7 +98,8 @@ async def handler(websocket, path):
                 await websocket.send(json.dumps({
                     'type': 'update',
                     'content': documents[doc_id]['content'],
-                    'version': documents[doc_id]['version']
+                    'version': documents[doc_id]['version'],
+                    'remote_address': websocket.remote_address[0]
                 }))
 
             # Handling editing a document
@@ -102,7 +110,8 @@ async def handler(websocket, path):
                 await broadcast_to_doc(doc_id, json.dumps({
                     'type': 'update',
                     'content': documents[doc_id]['content'],
-                    'version': documents[doc_id]['version']
+                    'version': documents[doc_id]['version'],
+                    'remote_address': websocket.remote_address[0]
                 }))
                 # Schedule a save after 2 seconds of idle time
                 asyncio.create_task(save_document(doc_id))
@@ -116,7 +125,8 @@ async def handler(websocket, path):
                 # Broadcast updated metadata to all clients
                 await broadcast_to_doc(None, json.dumps({
                     'type': 'metadata',
-                    'documents': metadata
+                    'documents': metadata,
+                    'remote_address': websocket.remote_address[0]
                 }))
                 
     finally:
@@ -126,7 +136,7 @@ async def handler(websocket, path):
 
 print(metadata)
 # Start the WebSocket server
-start_server = websockets.serve(handler, "localhost", 6789)
+start_server = websockets.serve(handler, "0.0.0.0", 6789)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 
