@@ -4,9 +4,18 @@ from PIL import Image, ImageTk
 import webbrowser
 import os
 import sys
+import re
 import subprocess
-from docx import Document
-from docx.shared import RGBColor, Pt
+from tkinter_RTFText.tkRTFText import RTFText
+import tkinter.font as tkf
+import asyncio
+import websockets
+import json
+import tkinter as tk
+from tkinter import simpledialog, messagebox
+import threading
+import time
+import logging
 
 class TextEditor:
     def __init__(self, root):
@@ -16,7 +25,6 @@ class TextEditor:
         # Set the window to fullscreen
         #self.root.attributes('-topmost', True)
         self.root.state('zoomed')
-        self.root.bind('<Escape>', self.toggle_fullscreen)  # Bind Escape key to exit fullscreen
 
         # Initialize font variables
         self.font_var = tk.StringVar(value="Arial")
@@ -29,7 +37,9 @@ class TextEditor:
         # Toolbar and text area setup
         self.toolbar = tk.Frame(self.root, bd=1, relief=tk.RAISED)
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
-        self.text_area = tk.Text(self.root, wrap='word', undo=True)
+        #self.text_area = tk.Text(self.root, wrap='word', undo=True)
+        self.text_area = RTFText(self.root, wrap='word', undo=True)
+        self.text_area.setRTF("", pad=(8,8), bg='white', font=tkf.Font(family='Arial', weight = 'normal', size = 11))
         self.text_area.pack(fill='both', expand=True)
 
         # Initialize image list for holding image references
@@ -53,10 +63,125 @@ class TextEditor:
         self.text_area.bind("<<Modified>>", self.on_text_modified)
         root.protocol("WM_DELETE_WINDOW", self.exit_file)
 
+        self.my_address = ""
+        logging.basicConfig(level=logging.DEBUG)
+
+    # Function to handle receiving updates from the server
+    async def listen_for_updates(self, uri, doc_id_var):
+        text_widget = self.text_area
+        while True:
+            try:
+                async with websockets.connect(uri, timeout=5) as websocket:
+                    while True:
+                        try:
+                            message = await websocket.recv()
+                            data = json.loads(message)
+
+                            # Handle document updates
+                            if data['type'] == 'update':
+                                if data['remote_address'] != self.my_address:
+                                    cursor_position = text_widget.index(tk.INSERT)
+                                    text_widget.delete('1.0', tk.END)
+                                    text_widget.insert(tk.END, data['content'])
+                                    try:
+                                        text_widget.mark_set(tk.INSERT, cursor_position)
+                                    except tk.TclError:
+                                        text_widget.mark_set(tk.INSERT, tk.END)
+
+                            # Handle metadata updates
+                            elif data['type'] == 'metadata':
+                                doc_id = self.select_document(data['documents'])
+                                self.my_address = data['remote_address']
+                                doc_id_var.set(doc_id)
+
+                                await websocket.send(json.dumps({
+                                    'type': 'view',
+                                    'doc_id': doc_id
+                                }))
+
+                            # Handle save notifications
+                            elif data['type'] == 'saved':
+                                print("saved")
+                                #messagebox.showinfo("Info", data['message'])
+
+                        except websockets.exceptions.ConnectionClosed:
+                            print("Connection closed, reconnecting")
+                            break
+                        except Exception as e:
+                            print(f"Error receiving update: {e}")
+                            break
+
+            except (websockets.exceptions.ConnectionClosedError, ConnectionRefusedError):
+                print("Connection failed, retrying in 5 seconds...")
+                await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Error in listen_for_updates: {e}")
+                await asyncio.sleep(5)
+
+
+    edit_sent = False
+
+    # Function to handle sending edits to the server
+    async def send_edit(self, uri, doc_id_var):
+        global edit_sent
+        text_widget = self.text_area
+        while True:
+            try:
+                async with websockets.connect(uri) as websocket:
+                    previous_content = text_widget.get('1.0', tk.END).rstrip('\n')
+                    with open(self.current_file, "r") as f:
+                        previous_content = f.read()
+                    while True:
+                        try:
+
+                            current_content = text_widget.get('1.0', tk.END).rstrip('\n')
+                            with open(self.current_file, "r") as f:
+                                current_content = f.read()
+                            # Check if the content has changed and an edit hasn't been sent
+                            if current_content != previous_content and not edit_sent:
+                                doc_id = doc_id_var.get()
+                                if doc_id:
+                                    await websocket.send(json.dumps({
+                                        'type': 'edit',
+                                        'doc_id': doc_id,
+                                        'content': current_content,
+                                        'remote_address': self.my_address
+                                    }))
+                                    # Update previous_content and set the flag
+                                    previous_content = current_content
+                                    edit_sent = True
+                            else:
+                                # Reset the flag if the content is the same
+                                edit_sent = False
+                            await asyncio.sleep(0.1)
+                        except websockets.exceptions.ConnectionClosed:
+                            print("Connection closed, reconnecting")
+                            break
+                        except Exception as e:
+                            print(f"Error sending edit: {e}")
+                            break
+            except Exception as e:
+                print(f"Error connecting to websocket: {e}")
+
+            except (websockets.exceptions.ConnectionClosedError, ConnectionRefusedError):
+                print("Connection failed, retrying in 5 seconds...")
+                await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Error in send_edit: {e}")
+                await asyncio.sleep(5)
+
+    # Function to select a document based on metadata
+    def select_document(self, documents):
+        doc_list = "\n".join(f"{doc_id}: {name}" for doc_id, name in documents.items())
+        print(doc_list)
+        
+        return "1"
+
     def toggle_fullscreen(self, event=None):
         """Toggle fullscreen mode."""
         is_fullscreen = self.root.attributes('-fullscreen')
         self.root.attributes('-fullscreen', not is_fullscreen)
+
 
 
     def add_toolbar_icons(self):
@@ -153,6 +278,8 @@ class TextEditor:
             self.text_area.tag_add(tag_name, "sel.first", "sel.last")
         except tk.TclError:
             pass  # Ignore if no text is selected
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def change_text_color(self):
         color = colorchooser.askcolor()[1]
@@ -187,27 +314,84 @@ class TextEditor:
         if self.is_file_modified:
             if not self.ask_save_changes():
                 return
+        
         self.text_area.delete(1.0, tk.END)
         self.current_file = None
+        self.save_file()
         self.is_file_modified = False
 
     def open_file(self):
         if self.is_file_modified:
             if not self.ask_save_changes():
                 return
-        file_path = filedialog.askopenfilename(filetypes=[("Word Files", "*.docx")])
+        file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
         if file_path:
-            doc = Document(file_path)
+            self.current_file = file_path
+            self.refresh_rtf(file_path)
+            """with open(file_path, "r") as file:
+                self.text_area.delete(1.0, tk.END)
+                self.text_area.setRTF(file.read(), pad=(8,8), bg='white', font=tkf.Font(family='Arial', weight = 'normal', size = 11))
+                self.current_file = file_path
+                self.is_file_modified = False"""
+                
+        """if file_path:
             content = "\n".join([p.text for p in doc.paragraphs])
             self.text_area.delete(1.0, tk.END)
             self.text_area.insert(tk.END, content)
             self.current_file = file_path
-            self.is_file_modified = False
+            self.is_file_modified = False"""
 
-    def save_to_docx_with_formatting(self, content, tags_info):
-        """
-        Save the text content along with its formatting to a .docx file.
-        """
+    def save_with_format(self, path):
+        content, tags = self.text_with_tags()
+        tags = self.convert_tags(tags)
+        print(tags)
+
+        for tag in tags:
+            # Insert tags into the text
+            position = tag[0]
+            tagtype = tag[1]
+            opening = tag[2]
+            if tagtype == 'italic':
+                tag_str = '<i>' if opening else '</i>'
+            elif tagtype == 'bold':
+                tag_str = '<b>' if opening else '</b>'
+            elif tagtype == 'underline':
+                tag_str = '<u>' if opening else '</u>'
+            elif tagtype.startswith('family:'):
+                tag_str = f"<{tagtype}>" if opening else "</family>"
+            elif tagtype.startswith("size:"):
+                tag_str = f"<{tagtype}>" if opening else "</size>"
+            else:
+                continue
+            
+
+            content = content[:position] + tag_str + content[position:]
+        print(content)
+        with open(path, 'w') as f:
+            f.write(content)
+
+        """for tag_range, tag_dict in tags_info.items():
+            print(tags_info)
+            start_idx, end_idx = tag_range
+            print(start_idx)
+            text_segment = content[start_idx:end_idx]
+            # Add the text to the document
+            if "bold" in tag_dict:
+                print("bold")
+            if "italic" in tag_dict:
+                print("italic")
+            if "underline" in tag_dict:
+                print("uncerline")
+            if "foreground" in tag_dict:
+                print("foreground")
+                # Convert color from hex to RGB
+                hex_color = tag_dict["foreground"]
+            if "font" in tag_dict:
+                print("font")
+                font_family, font_size = tag_dict["font"].split("_")[1:]"""
+
+    """def save_to_docx_with_formatting(self, content, tags_info):
+
         doc = Document()
         paragraph = doc.add_paragraph()
         # Initialize the position tracker
@@ -247,9 +431,7 @@ class TextEditor:
         
 
     def apply_run_formatting(self, run, tag_dict):
-        """
-        Apply the extracted formatting from tags to a document run.
-        """
+
         if "bold" in tag_dict:
             run.bold = True
         if "italic" in tag_dict:
@@ -264,18 +446,59 @@ class TextEditor:
             font_family, font_size = tag_dict["font"].split("_")[1:]
             run.font.name = font_family
             run.font.size = Pt(int(font_size))
+"""
+    def convert_tags(self, tags_info):
+        converted_tags = []
 
-    def get_text_with_tags(self):
-        """
-        Get the text along with all tags and their ranges.
-        """
+        for (start, end), tag_dict in tags_info.items():
+            for tag, value in tag_dict.items():
+                if tag.startswith('font_'):
+                    # Extract font family and size from tag
+                    _, font_family, font_size = tag.split('_', 2)
+                    converted_tags.append([start, f'family:{font_family}', True])
+                    converted_tags.append([end, f'family:{font_family}', False])
+
+                    converted_tags.append([start, f'size:{font_size}', True])
+                    converted_tags.append([end, f'size:{font_size}', False])
+                elif tag == 'italic':
+                    converted_tags.append([start, 'italic', True])
+                    converted_tags.append([end, 'italic', False])
+                elif tag == 'bold':
+                    converted_tags.append([start, 'bold', True])
+                    converted_tags.append([end, 'bold', False])
+                elif tag == 'underline':
+                    converted_tags.append([start, 'underline', True])
+                    converted_tags.append([end, 'underline', False])
+                elif tag.startswith('foreground'):
+                    # Handle color tags if necessary
+                    pass
+
+        # Sort the dictionary by keys (positions) if necessary
+        converted_tags = sorted(converted_tags, key=lambda x: x[0], reverse=True)
+        print(converted_tags)
+        return converted_tags
+
+        """    # Example usage
+        tags_info = {
+            (0, 7): {'0': True},
+            (7, 11): {'2': True},
+            (11, 24): {'4': True},
+            (13, 18): {'italic': True}
+        }
+
+        converted_tags = convert_tags(tags_info)
+        print(converted_tags)"""
+
+    def text_with_tags(self):
+
         content = self.text_area.get("1.0", "end-1c")  # All text without the last newline
         tags_info = {}
         for tag in self.text_area.tag_names():
+            print(f"{tag} TAG")
             if tag == "sel":
                 continue
-            print(tag)
             ranges = self.text_area.tag_ranges(tag)
+            print(ranges)
             for i in range(0, len(ranges), 2):
                 #print(f"ranges[i] {ranges[i]}")
                 start = self.text_area.index(ranges[i])
@@ -294,28 +517,62 @@ class TextEditor:
                 if (start_idx, end_idx) not in tags_info:
                     tags_info[(start_idx, end_idx)] = {}
                 tags_info[(start_idx, end_idx)][tag] = self.text_area.tag_cget(tag, "foreground") if tag.startswith("color_") else True
+                print(f"TAG {tag} START {start_idx} END {end_idx}")
         print(f"TAGS INFO \n {tags_info}")
         return content, tags_info
 
+
+    def insert_tags(self, path, start, end, startt, endt):
+        with open(path, 'r') as f:
+            content = f.read()
+        c = 0
+        count = True
+        for i in range(0, len(content)):
+            if content[i]=="<":
+                count=False
+            if content[i]==">":
+                count=True
+                continue
+            if c==end:
+                content = content[:c] + endt + content[c:]
+                with open(path, 'w') as f:
+                    f.write(content)
+            if count:
+                c+=1
+        count=True
+        c=0
+        for i in range(0, len(content)):
+            if content[i]=="<":
+                count=False
+            if content[i]==">":
+                count=True
+                continue
+            if c==start:
+                content = content[:c] + startt + content[c:]
+                with open(path, 'w') as f:
+                    f.write(content)
+            if count:
+                c+=1
+
+
     def save_file(self):
         if self.current_file:
-            
-            content, tags_info = self.get_text_with_tags()
-            self.save_to_docx_with_formatting(content, tags_info)
-            print("SAVE FILE GO TO SAVE TO DOCX")
-            
+            with open(self.current_file, 'w') as f:
+                f.write(self.text_area.get("1.0", "end-1c"))
             self.is_file_modified = False
+            self.refresh_rtf(self.current_file)
         else:
             self.save_as_file()
 
+
     def save_as_file(self):
-        file_path = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word Files", "*.docx")])
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt")])
         if file_path:
             with open(file_path, 'w') as f:
-                f.write("")
-            content, tags_info = self.get_text_with_tags()
-            self.save_to_docx_with_formatting(content, tags_info)
+                f.write(self.text_area.get("1.0", "end-1c"))
+            self.refresh_rtf(file_path)
             self.is_file_modified = False
+            self.current_file = file_path
 
     def exit_file(self):
         if self.is_file_modified:
@@ -343,7 +600,13 @@ class TextEditor:
         else:  # Cancel
             return False
         
-        
+    def refresh_rtf(self, path):
+        print(f"refresh {path}")
+        with open(path, 'r') as f:
+            content = f.read()
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.setRTF(content, pad=(8,8), bg='white', font=tkf.Font(family='Arial', weight = 'normal', size = 11))
+
     def update_word_count(self):
         text_content = self.text_area.get(1.0, tk.END)
         word_count = len(text_content.split())
@@ -353,19 +616,45 @@ class TextEditor:
         self.is_file_modified = self.text_area.edit_modified()
         self.text_area.edit_modified(False)
         self.update_word_count()
+        #self.refresh_rtf(self.current_file)
 
     def undo(self, event=None):
         """Undo the last operation."""
         self.text_area.edit_undo()
         self.update_word_count()
+        self.refresh_rtf(self.current_file)
 
     def redo(self, event=None):
         """Redo the last undone operation."""
         self.text_area.edit_redo()
         self.update_word_count()
+        self.refresh_rtf(self.current_file)
+
 
     def make_bold(self):
+        
+
+        """#current_tags = self.text_area.tag_names("sel.first")
+        start = self.text_area.index(tk.SEL_FIRST)
+        end = self.text_area.index(tk.SEL_LAST)
+        try:
+            start_abs = self.text_area.count("1.0", start)[0]  # Absolute position for the start '('
+        except TypeError:
+            start_abs = 0
+        end_abs = self.text_area.count("1.0", end)[0]  # Absolute position for the end ')'
+        self.insert_tags(self.current_file, start_abs, end_abs, "<b>", "</b>")"""
+        """
+        content = ""
+        with open(self.current_file, 'r') as f:
+            content = f.read()
+            content = content[:end_abs] + '</b>' + content[end_abs:]
+            content = content[:start_abs] + '<b>' + content[start_abs:]
+        with open(self.current_file, 'w') as f:
+            f.write(content)"""
+        
+        
         current_tags = self.text_area.tag_names("sel.first")
+
         if "italic" in current_tags and "underline" in current_tags:
             self.make_bolditalicunderline()
         elif "italic" in current_tags:
@@ -381,6 +670,8 @@ class TextEditor:
                 self.text_area.tag_remove("bold", "sel.first", "sel.last")
             else:
                 self.text_area.tag_add("bold", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_italic(self):
         current_tags = self.text_area.tag_names("sel.first")
@@ -399,6 +690,8 @@ class TextEditor:
                 self.text_area.tag_remove("italic", "sel.first", "sel.last")
             else:
                 self.text_area.tag_add("italic", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_underline(self):
         current_tags = self.text_area.tag_names("sel.first")
@@ -417,6 +710,8 @@ class TextEditor:
                 self.text_area.tag_remove("underline", "sel.first", "sel.last")
             else:
                 self.text_area.tag_add("underline", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_bolditalic(self):
         bolditalic_font = font.Font(self.text_area, self.text_area.cget("font"))
@@ -433,6 +728,8 @@ class TextEditor:
             self.text_area.tag_remove("bold", "sel.first", "sel.last")
         if "italic" in current_tags:
             self.text_area.tag_remove("italic", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_boldunderline(self):
         boldunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
@@ -449,6 +746,8 @@ class TextEditor:
             self.text_area.tag_remove("bold", "sel.first", "sel.last")
         if "underline" in current_tags:
             self.text_area.tag_remove("underline", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_italicunderline(self):
         italicunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
@@ -465,6 +764,8 @@ class TextEditor:
             self.text_area.tag_remove("italic", "sel.first", "sel.last")
         if "underline" in current_tags:
             self.text_area.tag_remove("underline", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def make_bolditalicunderline(self):
         bolditalicunderline_font = font.Font(self.text_area, self.text_area.cget("font"))
@@ -482,6 +783,8 @@ class TextEditor:
             self.text_area.tag_remove("italic", "sel.first", "sel.last")
         if "underline" in current_tags:
             self.text_area.tag_remove("underline", "sel.first", "sel.last")
+        self.save_with_format(self.current_file)
+        self.refresh_rtf(self.current_file)
 
     def insert_hyperlink_with_hover(self):
         url = simpledialog.askstring("Insert Hyperlink", "Enter URL:")
@@ -528,3 +831,64 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = TextEditor(root)
     root.mainloop()
+
+
+
+
+
+# Function to start the asyncio event loop
+def start_asyncio_loop(loop):
+    try:
+        loop.run_forever()
+    except asyncio.CancelledError:
+        pass
+
+# Main function to run the client
+def run_client():
+    root = tk.Tk()
+    app = TextEditor(root)
+
+    uri = "ws://10.61.1.112:6789"
+    doc_id_var = tk.StringVar()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+        # Start listening and sending tasks
+    loop.create_task(app.listen_for_updates(uri, doc_id_var))
+    loop.create_task(app.send_edit(uri, doc_id_var))
+
+        # Event to handle shutdown
+    shutdown_event = threading.Event()
+        
+    def on_shutdown():
+        print("Shutting down...")
+        root.destroy()
+
+        # Cancel all tasks and stop the event loop
+        for task in asyncio.all_tasks(loop):
+            task.cancel()
+        loop.call_soon_threadsafe(loop.stop)
+        time.sleep(0.5)
+        shutdown_event.set()
+
+    root.protocol("WM_DELETE_WINDOW", on_shutdown)
+
+        # Start the asyncio event loop in a separate thread
+    asyncio_thread = threading.Thread(target=start_asyncio_loop, args=(loop,))
+    asyncio_thread.start()
+    root.mainloop()
+
+        # Wait for shutdown to complete
+    shutdown_event.wait()
+
+        # Gracefully complete all tasks
+    loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop), return_exceptions=True))
+    loop.stop()
+    asyncio_thread.join()
+    loop.close()
+
+    
+
+if __name__ == "__main__":
+    run_client()
