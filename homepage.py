@@ -76,6 +76,7 @@ class HomePage:
             # Dodaj novi fajl u JSON listu
             with open('documents.json', 'r+') as f:
                 data = json.load(f)
+                print(data)
                 # Kreiraj novi ključ i dodaj fajl
                 new_key = str(len(data) + 1)
                 data[new_key] = new_file_name
